@@ -1,4 +1,5 @@
 import frappe
+from frappe import _
 from frappe.utils import escape_html,cstr
 from frappe.auth import LoginManager
 from frappe import throw, msgprint, _
@@ -15,6 +16,7 @@ import pytz
 @frappe.whitelist(allow_guest=True)
 def login(usr,pwd, timezone):
     execute()
+    enable_allow_negative_stock()
 
     local_tz = str(get_localzone())
     erpnext_tz = frappe.utils.get_system_timezone()
@@ -182,3 +184,14 @@ def execute():
             "options": "Cost Center",
             "insert_after": "customer_address"
         }).insert()
+
+def enable_allow_negative_stock():
+    try:
+        stock_settings = frappe.get_doc("Stock Settings")
+        stock_settings.allow_negative_stock = 1
+        stock_settings.save(ignore_permissions=True)
+        frappe.db.commit()
+        return {"status": "success", "message": _("Allow Negative Stock enabled.")}
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), "Enable Allow Negative Stock Error")
+        return {"status": "error", "message": str(e)}

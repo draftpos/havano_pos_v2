@@ -18,6 +18,13 @@ frappe.query_reports["Salary Summary Report"] = {
             "reqd": 1
         },
         {
+            "fieldname": "report_type",
+            "label": __("Report Type"),
+            "fieldtype": "Select",
+            "options": "\nCimas\nFuneral Policy\nLAPF\nZiBAWU\nUFAWUZ",
+            "default": ""
+        },
+        {
             "fieldname": "employee",
             "label": __("Employee"),
             "fieldtype": "Link",

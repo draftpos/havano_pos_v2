@@ -110,6 +110,10 @@ def calculate_components(doc):
     # Calculate UFAWUZ based on basic salary
     if component_exists_in_structure(structure, 'UFAWUZ'):
         add_or_update_component(doc, component_amounts, 'UFAWUZ', basic_salary * tax_components['UFAWUZ'])
+
+    # Calculate Cimas based on basic salary
+    if component_exists_in_structure(structure, 'Cimas'):
+        add_or_update_component(doc, component_amounts, 'Cimas', basic_salary * tax_components['Cimas'])
     
     # Calculate ZiBAWU based on basic salary
     if component_exists_in_structure(structure, 'ZiBAWU'):
