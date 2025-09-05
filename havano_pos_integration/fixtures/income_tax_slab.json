@@ -312,7 +312,7 @@
   "docstatus": 1,
   "doctype": "Income Tax Slab",
   "effective_from": "2025-02-01",
-  "modified": "2025-02-25 12:43:05.455207",
+  "modified": "2025-09-01 09:27:48.033519",
   "name": "Monthly",
   "other_taxes_and_charges": [],
   "slabs": [
@@ -328,7 +328,7 @@
    },
    {
     "condition": null,
-    "custom_amount_deduction": 0.0,
+    "custom_amount_deduction": 20.0,
     "from_amount": 100.01,
     "parent": "Monthly",
     "parentfield": "slabs",
@@ -338,7 +338,7 @@
    },
    {
     "condition": null,
-    "custom_amount_deduction": 0.0,
+    "custom_amount_deduction": 35.0,
     "from_amount": 300.01,
     "parent": "Monthly",
     "parentfield": "slabs",
@@ -348,7 +348,7 @@
    },
    {
     "condition": null,
-    "custom_amount_deduction": 0.0,
+    "custom_amount_deduction": 85.0,
     "from_amount": 1000.01,
     "parent": "Monthly",
     "parentfield": "slabs",
@@ -358,7 +358,7 @@
    },
    {
     "condition": null,
-    "custom_amount_deduction": 0.0,
+    "custom_amount_deduction": 185.0,
     "from_amount": 2000.01,
     "parent": "Monthly",
     "parentfield": "slabs",
@@ -368,7 +368,7 @@
    },
    {
     "condition": null,
-    "custom_amount_deduction": 0.0,
+    "custom_amount_deduction": 335.0,
     "from_amount": 3000.01,
     "parent": "Monthly",
     "parentfield": "slabs",

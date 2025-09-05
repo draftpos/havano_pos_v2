@@ -119,19 +119,12 @@ def calculate_components(doc):
     if component_exists_in_structure(structure, 'ZiBAWU'):
         add_or_update_component(doc, component_amounts, 'ZiBAWU', basic_salary * tax_components['ZiBAWU'])
 
-    # Calculate ZiBAWU based on basic salary
-    if component_exists_in_structure(structure, 'ZiBAWU'):
-        add_or_update_component(doc, component_amounts, 'ZiBAWU', basic_salary * tax_components['ZiBAWU'])
-
     # Calculate LAPF based on basic salary
     if component_exists_in_structure(structure, 'LAPF'):
         add_or_update_component(doc, component_amounts, 'LAPF', basic_salary * tax_components['LAPF'])
     
-    nssa_amount = component_amounts.get('NSSA', {}).get('amount', 0) or 0
-    nec_amount = component_amounts.get('NEC Commercial', {}).get('amount', 0) or 0
-
-    # Calculate total allowable deductions
-    total_allowable = nssa_amount + nec_amount
+    # Calculate total allowable deductions using payee_deductions from Payroll Settings
+    total_allowable = calculate_total_allowable_from_settings(doc, component_amounts)
     doc.custom_total_allowable_deductions = total_allowable
     
     # Calculate taxable income after allowable deductions
@@ -139,6 +132,23 @@ def calculate_components(doc):
     
     # Calculate tax and AIDS Levy
     calculate_tax(doc, component_amounts, tax_components, medical_amount)
+
+def calculate_total_allowable_from_settings(doc, component_amounts):
+    """
+    Calculate total allowable deductions based on components selected in Payroll Settings payee_deductions
+    """
+    # Get payee_deductions from Payroll Settings
+    payroll_settings = frappe.get_single("Payroll Settings")
+    total_allowable = 0
+    
+    if payroll_settings.payee_deductions:
+        for deduction_row in payroll_settings.payee_deductions:
+            component_name = deduction_row.component
+            # Get the amount for this component from the calculated component_amounts
+            component_amount = component_amounts.get(component_name, {}).get('amount', 0) or 0
+            total_allowable += component_amount
+    
+    return total_allowable
 
 def add_or_update_component(doc, component_dict, component_name, amount):
     if component_name in component_dict:

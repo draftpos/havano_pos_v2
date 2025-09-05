@@ -152,71 +152,7 @@ def create_salary_structure_assignment(doc):
                         "Salary Structure Assignment Creation Error")
         frappe.throw(_("Could not create Salary Structure Assignment: {0}").format(str(e)))
 
-# def employee_before_save(doc, method):
-#     """
-#     Handle custom salary structure and additional salary creation/update
-#     when an employee is saved
-#     """
-#     # First, handle any existing salary structure assignments and structures
-#     # to avoid dependency issues
-#     if doc.custom_salary_computed:
-#         # Cancel and delete existing assignments first
-#         existing_assignments = frappe.db.get_all(
-#             "Salary Structure Assignment",
-#             filters={
-#                 "employee": doc.name,
-#                 "docstatus": ["!=", 2]  # Not cancelled
-#             },
-#             fields=["name", "docstatus"]
-#         )
-        
-#         for assignment in existing_assignments:
-#             try:
-#                 ssa_doc = frappe.get_doc("Salary Structure Assignment", assignment.name)
-#                 if ssa_doc.docstatus == 1:  # If submitted
-#                     ssa_doc.flags.ignore_linked_doctypes = True
-#                     ssa_doc.cancel()
-                
-#                 # Delete the cancelled assignment
-#                 frappe.delete_doc("Salary Structure Assignment", ssa_doc.name, force=True)
-#             except Exception as e:
-#                 frappe.log_error(f"Error cleaning up salary structure assignment: {str(e)}", 
-#                                 "Salary Structure Assignment Cleanup Error")
-        
-#         # Now it's safe to handle salary structures
-#         if doc.custom_salary_structure:
-#             try:
-#                 ss = frappe.get_doc("Salary Structure", doc.custom_salary_structure)
-#                 if ss.docstatus == 1:  # If submitted
-#                     ss.flags.ignore_linked_doctypes = True
-#                     ss.cancel()
-                
-#                 # Delete the cancelled structure
-#                 frappe.delete_doc("Salary Structure", ss.name, force=True)
-#             except Exception as e:
-#                 frappe.log_error(f"Error cleaning up salary structure: {str(e)}", 
-#                                 "Salary Structure Cleanup Error")
-    
-#     # Now proceed with the normal flow
-#     if not doc.custom_salary_computed:
-#         # Check if we need to create salary structure
-#         if doc.custom_earnings or doc.custom_deductions:
-#             # Create salary structure and set the reference in the employee doc
-#             ss_name = create_salary_structure(doc)
-#             doc.custom_salary_structure = ss_name
-            
-#             # Now create salary structure assignment using the reference
-#             create_salary_structure_assignment(doc)
-#             doc.custom_salary_computed = 1
-#     else:
-#         # Update existing salary structure
-#         ss_name = create_salary_structure(doc)  # Create new and delete old
-#         doc.custom_salary_structure = ss_name
-#         create_salary_structure_assignment(doc)  # Create new assignment and delete old
-    
-#     # Handle additional salary
-#     if hasattr(doc, 'custom_additional_salary') and doc.custom_additional_salary:
-#         create_or_update_additional_salary(doc)
+
 
 def create_or_update_additional_salary(doc):
     """Create or update additional salary entries with currency conversion"""
@@ -758,3 +694,195 @@ def salary_structure_on_cancel(doc, method):
                 frappe.msgprint(_("Failed to create new salary structure for employee {0}: {1}").format(
                     employee.employee_name, str(e)))
 
+
+def ensure_naming_series_exists(series_name, prefix, description):
+	"""
+	Ensure a naming series exists, create if it doesn't
+	"""
+	if not frappe.db.exists("Naming Series", series_name):
+		naming_series = frappe.new_doc("Naming Series")
+		naming_series.name = series_name
+		naming_series.prefix = prefix
+		naming_series.current_value = 1
+		naming_series.suffix = ""
+		naming_series.prefix_digits = 4
+		naming_series.description = description
+		naming_series.insert()
+		frappe.db.commit()
+
+@frappe.whitelist()
+def create_extra_time_records(employee, date, salary_component, amount, extra_type, hours_worked):
+	"""
+	Create both Employee Other Pay and Additional Salary records
+	
+	Args:
+		employee (str): Employee ID
+		date (str): Date for the records
+		salary_component (str): Salary Component ID
+		amount (float): Amount for the records
+	
+	Returns:
+		dict: Status message
+	"""
+	try:
+		# Ensure naming series exist
+		# ensure_naming_series_exists("EOP-", "EOP-", "Employee Other Pay Naming Series")
+		# ensure_naming_series_exists("HR-ADS-.YY.-.MM.-", "HR-ADS-", "Additional Salary Naming Series")
+		
+		# Validate inputs
+		if not all([employee, date, salary_component, amount]):
+			return {"status": "error", "message": "All fields are required"}
+		
+		# Validate amount is positive
+		try:
+			amount = float(amount)
+			if amount <= 0:
+				return {"status": "error", "message": "Amount must be greater than zero"}
+		except (ValueError, TypeError):
+			return {"status": "error", "message": "Invalid amount value"}
+		
+		# Validate date format
+		try:
+			from frappe.utils import getdate
+			getdate(date)
+		except:
+			return {"status": "error", "message": "Invalid date format"}
+		
+		# Get employee details
+		employee_doc = frappe.get_doc("Employee", employee)
+		if not employee_doc:
+			return {"status": "error", "message": "Employee not found"}
+		
+		# Get company details
+		company = employee_doc.company
+		if not company:
+			return {"status": "error", "message": "Company not found for employee"}
+		
+		# Get company currency
+		company_currency = frappe.db.get_value("Company", company, "default_currency")
+		if not company_currency:
+			return {"status": "error", "message": "Company currency not found"}
+		
+		# Validate salary component exists
+		if not frappe.db.exists("Salary Component", salary_component):
+			return {"status": "error", "message": "Salary component not found"}
+		
+		# Get salary component type
+		salary_component_type = frappe.db.get_value("Salary Component", salary_component, "type")
+		if not salary_component_type:
+			return {"status": "error", "message": "Salary component type not found"}
+		
+		# Check if Additional Salary already exists for this employee, salary component, and month
+		from frappe.utils import getdate
+		from datetime import datetime, timedelta
+		
+		date_obj = getdate(date)
+		month_start = date_obj.replace(day=1)
+		month_end = (month_start.replace(month=month_start.month % 12 + 1, day=1) - timedelta(days=1)) if month_start.month < 12 else month_start.replace(year=month_start.year + 1, month=1, day=1) - timedelta(days=1)
+		
+		existing_additional_salary = frappe.db.get_value(
+			"Additional Salary",
+			{
+				"employee": employee,
+				"salary_component": salary_component,
+				"payroll_date": ["between", [month_start, month_end]],
+				"docstatus": ["!=", 2]  # Not cancelled
+			},
+			"name"
+		)
+		
+		# Create Employee Other Pay record
+		employee_other_pay = frappe.new_doc("Employee Other Pay")
+		employee_other_pay.employee = employee
+		employee_other_pay.date = date
+		employee_other_pay.type = extra_type
+		employee_other_pay.hours_worked = hours_worked
+		employee_other_pay.salary_component = salary_component
+		employee_other_pay.amount = amount
+		employee_other_pay.naming_series = "EOP-"
+		employee_other_pay.insert()
+		
+		# Create or update Additional Salary record
+		if existing_additional_salary:
+			# Update existing Additional Salary record
+			additional_salary = frappe.get_doc("Additional Salary", existing_additional_salary)
+			old_amount = additional_salary.amount
+			additional_salary.amount = old_amount + amount
+			additional_salary.custom_amount_currency = additional_salary.amount
+			additional_salary.save()
+			additional_salary_name = additional_salary.name
+			action = "updated"
+		else:
+			# Create new Additional Salary record
+			additional_salary = frappe.new_doc("Additional Salary")
+			additional_salary.employee = employee
+			additional_salary.company = company
+			additional_salary.department = employee_doc.department
+			additional_salary.salary_component = salary_component
+			additional_salary.amount = amount
+			additional_salary.custom_amount_currency = amount
+			additional_salary.payroll_date = date
+			additional_salary.type = salary_component_type
+			additional_salary.currency = company_currency
+			additional_salary.overwrite_salary_structure_amount = 1
+			additional_salary.ref_doctype = "Employee Other Pay"
+			additional_salary.ref_docname = employee_other_pay.name
+			
+			# Set naming series
+			additional_salary.naming_series = "HR-ADS-.YY.-.MM.-"
+			
+			additional_salary.insert()
+			additional_salary.submit()
+			additional_salary_name = additional_salary.name
+			action = "created"
+		
+		return {
+			"status": "success", 
+			"message": f"Employee Other Pay created and Additional Salary {action} successfully",
+			"employee_other_pay": employee_other_pay.name,
+			"additional_salary": additional_salary_name,
+			"action": action
+		}
+		
+	except Exception as e:
+		frappe.log_error(f"Error creating extra time records: {str(e)}", "Employee Extra Time Creation")
+		return {"status": "error", "message": f"Error creating records: {str(e)}"}
+
+@frappe.whitelist()
+def get_employee_extra_time_records(employee):
+	"""
+	Get extra time records for the current month for an employee
+	
+	Args:
+		employee (str): Employee ID
+	
+	Returns:
+		list: List of extra time records for current month
+	"""
+	try:
+		from frappe.utils import getdate, today
+		from datetime import datetime, timedelta
+		
+		# Get current month start and end dates
+		today_date = getdate(today())
+		month_start = today_date.replace(day=1)
+		
+		# Calculate month end
+		if month_start.month == 12:
+			month_end = month_start.replace(year=month_start.year + 1, month=1, day=1) - timedelta(days=1)
+		else:
+			month_end = month_start.replace(month=month_start.month + 1, day=1) - timedelta(days=1)
+		
+		# Get Employee Other Pay records for current month
+		extra_time_records = frappe.db.get_all(
+			"Employee Other Pay",
+			filters={"employee": employee, "date": ["between", [month_start, month_end]], "docstatus": ["!=", 2]},
+			fields=["name", "date", "salary_component", "amount", "creation"],
+			order_by="date DESC, creation DESC"
+		)
+		
+		return extra_time_records
+		
+	except Exception as e:
+		frappe.log_error(f"Error fetching extra time records: {str(e)}", "Employee Extra Time Fetch")
+		return []

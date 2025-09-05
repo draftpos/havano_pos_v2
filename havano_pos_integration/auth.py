@@ -67,21 +67,82 @@ def login(usr,pwd, timezone):
     default_customer = frappe.db.get_value("User Permission",
         {"user": user.name, "allow": "Customer", "is_default": 1}, "for_value") 
 
-    # Get items and their quantities from default warehouse
+    # Get items and their quantities from all warehouses
     warehouse_items = []
-    if default_warehouse:
-        warehouse_items = frappe.db.sql("""
-            SELECT 
-                item.item_code,
-                item.item_name,
-                item.description,
-                item.stock_uom,
-                bin.actual_qty,
-                bin.projected_qty
-            FROM `tabItem` item
-            LEFT JOIN `tabBin` bin ON bin.item_code = item.item_code 
-            WHERE bin.warehouse = %s
-        """, default_warehouse, as_dict=1)
+    warehouse_items = frappe.db.sql("""
+        SELECT 
+            item.item_code,
+            item.item_name,
+            item.description,
+            item.stock_uom,
+            bin.actual_qty,
+            bin.projected_qty
+        FROM `tabItem` item
+        LEFT JOIN `tabBin` bin ON bin.item_code = item.item_code 
+    """, as_dict=1)
+        
+        # Add pricing information to warehouse items
+    default_price_list = frappe.db.get_value("Customer", default_customer, "default_price_list")
+
+    if default_customer:
+        try:
+            # Get the default selling price list
+            if not default_price_list:
+                # Fallback to any selling price list
+                default_price_list = frappe.db.get_value("Price List", {"selling": 1}, "name")
+            
+            if default_price_list:
+                # Get the company and its default currency
+                default_company = frappe.db.get_single_value('Global Defaults', 'default_company')
+                company_currency = frappe.db.get_value("Company", default_company, "default_currency") if default_company else None
+                
+                for item in warehouse_items:
+                    try:
+                        from erpnext.stock.get_item_details import get_item_details
+                        
+                        # Get item details with customer context
+                        item_details = get_item_details({
+                            "doctype": "Sales Invoice",
+                            "item_code": item.item_code,
+                            "company": default_company,
+                            "customer": default_customer,
+                            "selling_price_list": default_price_list,
+                            "qty": 1,
+                            "currency": company_currency,
+                            "conversion_rate": 1.0,
+                            "plc_conversion_rate": 1.0
+                        })
+                        
+                        # Add pricing fields to the existing item
+                        item["price_list_rate"] = item_details.get("price_list_rate", 0)
+                        item["rate"] = item_details.get("rate", 0)
+                        item["currency"] = frappe.db.get_value("Price List", default_price_list, "currency") or company_currency
+                        
+                    except Exception as e:
+                        # If there's an error getting price for specific item, set default values
+                        error_msg = f"Error getting price for item {item.item_code}: {str(e)}"
+                        if len(error_msg) > 140:
+                            error_msg = error_msg[:137] + "..."
+                        frappe.log_error(error_msg, "Item Price Error")
+                        item["price_list_rate"] = 0
+                        item["rate"] = 0
+                        item["currency"] = company_currency
+        except Exception as e:
+            error_msg = f"Error getting item prices: {str(e)}"
+            if len(error_msg) > 140:
+                error_msg = error_msg[:137] + "..."
+            frappe.log_error(error_msg, "Item Prices Error")
+            # Set default values for all items if there's a general error
+            for item in warehouse_items:
+                item["price_list_rate"] = 0
+                item["rate"] = 0
+                item["currency"] = None
+    else:
+        # If no default customer, set default pricing values
+        for item in warehouse_items:
+            item["price_list_rate"] = 0
+            item["rate"] = 0
+            item["currency"] = None
 
     # Get customers with the same cost center as the default cost center
     customers = []
@@ -92,6 +153,7 @@ def login(usr,pwd, timezone):
             },
             fields=["name", "customer_name", "customer_group", "territory", "custom_cost_center"]
         )
+    
     default_company_doc = None
     default_company = frappe.db.get_single_value('Global Defaults','default_company')
     if default_company:
@@ -115,9 +177,10 @@ def login(usr,pwd, timezone):
         "warehouse": default_warehouse,
         "cost_center": default_cost_center,
         "default_customer": default_customer,
+        "customer_default_price_list": default_price_list,
         "customers": customers,
         "warehouse_items": warehouse_items,
-        "time_zone": f"{local_tz}{erpnext_tz}",
+        "time_zone": f"{local_tz}",
         "company" : company_info,
     }
     frappe.response["token_string"] = token_string
