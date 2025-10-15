@@ -14,9 +14,9 @@ import pytz
 
 
 @frappe.whitelist(allow_guest=True)
-def login(usr,pwd, timezone):
-    execute()
-    enable_allow_negative_stock()
+def login(usr,pwd,timezone,items_limit=1000):
+    # execute()
+    # enable_allow_negative_stock()
 
     local_tz = str(get_localzone())
     erpnext_tz = frappe.utils.get_system_timezone()
@@ -79,7 +79,8 @@ def login(usr,pwd, timezone):
             bin.projected_qty
         FROM `tabItem` item
         LEFT JOIN `tabBin` bin ON bin.item_code = item.item_code 
-    """, as_dict=1)
+        LIMIT %s
+    """, (items_limit,), as_dict=1)
         
         # Add pricing information to warehouse items
     default_price_list = frappe.db.get_value("Customer", default_customer, "default_price_list")
@@ -187,6 +188,143 @@ def login(usr,pwd, timezone):
     frappe.response["token"] =  base64.b64encode(token_string.encode("ascii")).decode("utf-8")
 
     return
+
+@frappe.whitelist()
+def get_warehouse_items(page=1, page_size=50, customer=None):
+    """
+    Get warehouse items with pagination
+    Args:
+        page: Page number (default: 1)
+        page_size: Number of items per page (default: 50)
+        customer: Customer code for pricing (optional)
+    """
+    try:
+        # Validate pagination parameters
+        page = int(page)
+        page_size = int(page_size)
+        
+        if page < 1:
+            page = 1
+        if page_size < 1 or page_size > 1000:
+            page_size = 50
+            
+        # Calculate offset
+        offset = (page - 1) * page_size
+        
+        # Get user's default customer if not provided
+        if not customer:
+            customer = frappe.db.get_value("User Permission",
+                {"user": frappe.session.user, "allow": "Customer", "is_default": 1}, "for_value")
+        
+        # Get total count for pagination info
+        total_count = frappe.db.sql("""
+            SELECT COUNT(DISTINCT item.item_code)
+            FROM `tabItem` item
+            LEFT JOIN `tabBin` bin ON bin.item_code = item.item_code 
+        """)[0][0]
+        
+        # Get items with pagination
+        warehouse_items = frappe.db.sql("""
+            SELECT 
+                item.item_code,
+                item.item_name,
+                item.description,
+                item.stock_uom,
+                bin.actual_qty,
+                bin.projected_qty
+            FROM `tabItem` item
+            LEFT JOIN `tabBin` bin ON bin.item_code = item.item_code 
+            ORDER BY item.item_code
+            LIMIT %s OFFSET %s
+        """, (page_size, offset), as_dict=1)
+        
+        # Add pricing information to warehouse items
+        default_price_list = None
+        if customer:
+            default_price_list = frappe.db.get_value("Customer", customer, "default_price_list")
+
+        if customer:
+            try:
+                # Get the default selling price list
+                if not default_price_list:
+                    # Fallback to any selling price list
+                    default_price_list = frappe.db.get_value("Price List", {"selling": 1}, "name")
+                
+                if default_price_list:
+                    # Get the company and its default currency
+                    default_company = frappe.db.get_single_value('Global Defaults', 'default_company')
+                    company_currency = frappe.db.get_value("Company", default_company, "default_currency") if default_company else None
+                    
+                    for item in warehouse_items:
+                        try:
+                            from erpnext.stock.get_item_details import get_item_details
+                            
+                            # Get item details with customer context
+                            item_details = get_item_details({
+                                "doctype": "Sales Invoice",
+                                "item_code": item.item_code,
+                                "company": default_company,
+                                "customer": customer,
+                                "selling_price_list": default_price_list,
+                                "qty": 1,
+                                "currency": company_currency,
+                                "conversion_rate": 1.0,
+                                "plc_conversion_rate": 1.0
+                            })
+                            
+                            # Add pricing fields to the existing item
+                            item["price_list_rate"] = item_details.get("price_list_rate", 0)
+                            item["rate"] = item_details.get("rate", 0)
+                            item["currency"] = frappe.db.get_value("Price List", default_price_list, "currency") or company_currency
+                            
+                        except Exception as e:
+                            # If there's an error getting price for specific item, set default values
+                            error_msg = f"Error getting price for item {item.item_code}: {str(e)}"
+                            if len(error_msg) > 140:
+                                error_msg = error_msg[:137] + "..."
+                            frappe.log_error(error_msg, "Item Price Error")
+                            item["price_list_rate"] = 0
+                            item["rate"] = 0
+                            item["currency"] = company_currency
+            except Exception as e:
+                error_msg = f"Error getting item prices: {str(e)}"
+                if len(error_msg) > 140:
+                    error_msg = error_msg[:137] + "..."
+                frappe.log_error(error_msg, "Item Prices Error")
+                # Set default values for all items if there's a general error
+                for item in warehouse_items:
+                    item["price_list_rate"] = 0
+                    item["rate"] = 0
+                    item["currency"] = None
+        else:
+            # If no customer, set default pricing values
+            for item in warehouse_items:
+                item["price_list_rate"] = 0
+                item["rate"] = 0
+                item["currency"] = None
+
+        # Calculate pagination info
+        total_pages = (total_count + page_size - 1) // page_size
+        has_next = page < total_pages
+        has_prev = page > 1
+        
+        frappe.response["items"] = warehouse_items
+        frappe.response["pagination"] = {
+            "current_page": page,
+            "page_size": page_size,
+            "total_count": total_count,
+            "total_pages": total_pages,
+            "has_next": has_next,
+            "has_prev": has_prev
+        }
+        
+        return
+        
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), "Get Warehouse Items Error")
+        frappe.local.response.http_status_code = 500
+        frappe.local.response["message"] = "Error retrieving warehouse items"
+        return
 
 
 def generate_keys(user):

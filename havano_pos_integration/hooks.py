@@ -189,20 +189,21 @@ fixtures = [
         "dt": "Custom Field",
         "filters": [
             ["module", "=", "Havano Pos Integration"],
-            # ["dt", "=", "Salary Slip"],
-            # ["dt", "=", "Income Tax Slab"],
-            # ["dt", "=", "Taxable Salary Slab"],
-            # ["dt", "=", "Salary Component"],
-            # ["dt", "=", "Letter Head"],
-            # ["dt", "=", "Print Format"],
         ]
     },
-    # "Custom Field",
     "Letter Head",
     "Print Format",
     "Income Tax Slab",
-    "Salary Component"
+    {
+        "dt": "Salary Component",
+        "filters": [
+            ["salary_component", "in", ["Extra Time"]]
+        ]
+    }
 ]
+
+
+
 
 #doc_events = {
 # 	"*": {

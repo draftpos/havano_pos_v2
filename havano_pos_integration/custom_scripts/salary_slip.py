@@ -65,6 +65,7 @@ def calculate_components(doc):
             tax_components[component_name] = float(tax_percentage) / 100
     
     # Get Medical amount if it exists
+    medical_amount=0
     for component_name, component in component_amounts.items():
         if "MEDICAL" in component_name.upper():
             medical_amount += component.amount or 0

@@ -5,10 +5,10 @@
   "company": "ChromeGold Pvt Ltd",
   "currency": "USD",
   "disabled": 0,
-  "docstatus": 0,
+  "docstatus": 2,
   "doctype": "Income Tax Slab",
   "effective_from": "2025-01-01",
-  "modified": "2025-05-23 17:17:51.580762",
+  "modified": "2025-10-13 11:19:33.346626",
   "name": "Monthly USD",
   "other_taxes_and_charges": [],
   "slabs": [
@@ -73,7 +73,85 @@
     "to_amount": 1000000.0
    }
   ],
-  "standard_tax_exemption_amount": 0.0
+  "standard_tax_exemption_amount": 0.0,
+  "tax_relief_limit": 0.0
+ },
+ {
+  "allow_tax_exemption": 0,
+  "amended_from": null,
+  "company": "ChromeGold Pvt Ltd",
+  "currency": "USD",
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Income Tax Slab",
+  "effective_from": "2025-01-01",
+  "modified": "2025-05-23 17:17:51.580762",
+  "name": "Monthly USD1",
+  "other_taxes_and_charges": [],
+  "slabs": [
+   {
+    "condition": null,
+    "custom_amount_deduction": 0.0,
+    "from_amount": 0.0,
+    "parent": "Monthly USD1",
+    "parentfield": "slabs",
+    "parenttype": "Income Tax Slab",
+    "percent_deduction": 0.0,
+    "to_amount": 100.0
+   },
+   {
+    "condition": null,
+    "custom_amount_deduction": 0.0,
+    "from_amount": 100.01,
+    "parent": "Monthly USD1",
+    "parentfield": "slabs",
+    "parenttype": "Income Tax Slab",
+    "percent_deduction": 20.0,
+    "to_amount": 300.0
+   },
+   {
+    "condition": null,
+    "custom_amount_deduction": 0.0,
+    "from_amount": 300.01,
+    "parent": "Monthly USD1",
+    "parentfield": "slabs",
+    "parenttype": "Income Tax Slab",
+    "percent_deduction": 25.0,
+    "to_amount": 1000.0
+   },
+   {
+    "condition": null,
+    "custom_amount_deduction": 0.0,
+    "from_amount": 1000.01,
+    "parent": "Monthly USD1",
+    "parentfield": "slabs",
+    "parenttype": "Income Tax Slab",
+    "percent_deduction": 30.0,
+    "to_amount": 2000.0
+   },
+   {
+    "condition": null,
+    "custom_amount_deduction": 0.0,
+    "from_amount": 2000.01,
+    "parent": "Monthly USD1",
+    "parentfield": "slabs",
+    "parenttype": "Income Tax Slab",
+    "percent_deduction": 35.0,
+    "to_amount": 3000.0
+   },
+   {
+    "condition": null,
+    "custom_amount_deduction": 0.0,
+    "from_amount": 3000.01,
+    "parent": "Monthly USD1",
+    "parentfield": "slabs",
+    "parenttype": "Income Tax Slab",
+    "percent_deduction": 40.0,
+    "to_amount": 1000000.0
+   }
+  ],
+  "standard_tax_exemption_amount": 0.0,
+  "tax_relief_limit": 0.0
  },
  {
   "allow_tax_exemption": 0,
@@ -149,7 +227,8 @@
     "to_amount": 1000000.0
    }
   ],
-  "standard_tax_exemption_amount": 0.0
+  "standard_tax_exemption_amount": 0.0,
+  "tax_relief_limit": 0.0
  },
  {
   "allow_tax_exemption": 0,
@@ -225,7 +304,8 @@
     "to_amount": 1000000.0
    }
   ],
-  "standard_tax_exemption_amount": 0.0
+  "standard_tax_exemption_amount": 0.0,
+  "tax_relief_limit": 0.0
  },
  {
   "allow_tax_exemption": 0,
@@ -301,7 +381,8 @@
     "to_amount": 1000000.0
    }
   ],
-  "standard_tax_exemption_amount": 0.0
+  "standard_tax_exemption_amount": 0.0,
+  "tax_relief_limit": 0.0
  },
  {
   "allow_tax_exemption": 0,
@@ -377,6 +458,7 @@
     "to_amount": 1000000.0
    }
   ],
-  "standard_tax_exemption_amount": 0.0
+  "standard_tax_exemption_amount": 0.0,
+  "tax_relief_limit": 0.0
  }
 ]

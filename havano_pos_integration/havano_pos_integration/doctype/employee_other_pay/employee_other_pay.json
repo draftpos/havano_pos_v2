@@ -1,125 +1,128 @@
 {
-    "actions": [],
-    "allow_rename": 1,
-    "autoname": "naming_series:EOP-",
-    "creation": "2025-01-27 10:00:00.000000",
-    "doctype": "DocType",
-    "engine": "InnoDB",
-    "field_order": [
-     "naming_series",
-     "employee",
-     "salary_component",
-     "date",
-     "amount",
-     "hours_worked",
-     "extra_type",
-     "column_break_1"
-    ],
-    "fields": [
-     {
-      "fieldname": "naming_series",
-      "fieldtype": "Select",
-      "label": "Naming Series",
-      "options": "EOP-",
-      "default": "EOP-",
-      "reqd": 1
-     },
-     {
-      "fieldname": "extra_type",
-      "fieldtype": "Select",
-      "label": "Extra Type",
-      "options": "Work Days, Holidays",
-      "default": "Work Days",
-      "reqd": 1
-     },
-     {
-      "fieldname": "hours_worked",
-      "fieldtype": "Float",
-      "label": "Hours Worked",
-      "reqd": 1
-     },
-     {
-      "fieldname": "employee",
-      "fieldtype": "Link",
-      "label": "Employee",
-      "options": "Employee",
-      "reqd": 1
-     },
-     {
-      "fieldname": "salary_component",
-      "fieldtype": "Link",
-      "label": "Salary Component",
-      "options": "Salary Component",
-      "default": "Allowances - Overtime",
-      "reqd": 1
-     },
-     {
-      "fieldname": "date",
-      "fieldtype": "Date",
-      "label": "Date",
-      "default": "Today",
-      "reqd": 1
-     },
-     {
-      "fieldname": "amount",
-      "fieldtype": "Currency",
-      "label": "Amount",
-      "reqd": 1
-     },
-     {
-      "fieldname": "column_break_1",
-      "fieldtype": "Column Break"
-     }
-    ],
-    "index_web_pages_for_search": 1,
-    "links": [],
-    "modified": "2025-01-27 10:00:00.000000",
-    "modified_by": "Administrator",
-    "module": "Havano Pos Integration",
-    "name": "Employee Other Pay",
-    "naming_rule": "By \"Naming Series\" field",
-    "owner": "Administrator",
-    "permissions": [
-     {
-      "create": 1,
-      "delete": 1,
-      "email": 1,
-      "export": 1,
-      "print": 1,
-      "read": 1,
-      "report": 1,
-      "role": "System Manager",
-      "share": 1,
-      "write": 1
-     },
-     {
-      "create": 1,
-      "delete": 1,
-      "email": 1,
-      "export": 1,
-      "print": 1,
-      "read": 1,
-      "report": 1,
-      "role": "HR Manager",
-      "share": 1,
-      "write": 1
-     },
-     {
-      "create": 1,
-      "delete": 0,
-      "email": 1,
-      "export": 1,
-      "print": 1,
-      "read": 1,
-      "report": 1,
-      "role": "HR User",
-      "share": 1,
-      "write": 1
-     }
-    ],
-    "sort_field": "modified",
-    "sort_order": "DESC",
-    "states": [],
-    "track_changes": 1
-   }
-   
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:EOP-",
+ "creation": "2025-01-27 10:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "employee",
+  "salary_component",
+  "date",
+  "amount",
+  "hours_worked",
+  "extra_type",
+  "column_break_1"
+ ],
+ "fields": [
+  {
+   "default": "EOP-",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Naming Series",
+   "options": "EOP-",
+   "reqd": 1
+  },
+  {
+   "default": "Work Days",
+   "fieldname": "extra_type",
+   "fieldtype": "Select",
+   "label": "Extra Type",
+   "options": "Work Days\nHolidays\nFree-Lance",
+   "reqd": 1
+  },
+  {
+   "fieldname": "hours_worked",
+   "fieldtype": "Float",
+   "label": "Hours Worked",
+   "reqd": 1
+  },
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Employee",
+   "options": "Employee",
+   "reqd": 1
+  },
+  {
+   "default": "Allowances - Overtime",
+   "fieldname": "salary_component",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Salary Component",
+   "options": "Salary Component",
+   "reqd": 1
+  },
+  {
+   "default": "Today",
+   "fieldname": "date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "label": "Amount",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-10-15 08:50:59.690579",
+ "modified_by": "Administrator",
+ "module": "Havano Pos Integration",
+ "name": "Employee Other Pay",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR User",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
