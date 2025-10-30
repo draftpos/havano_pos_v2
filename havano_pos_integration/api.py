@@ -302,6 +302,7 @@ def get_products():
                 "groupname": detail["item_group"],
                 "maintainstock": detail["is_stock_item"],
                 "warehouses": products[item_code]["warehouses"],
+                "default warehouse": get_default_warehouse_for_user(),
                 "prices": products[item_code]["prices"],
                 "taxes": products[item_code]["taxes"]
             }
@@ -335,6 +336,36 @@ def get_products():
         frappe.log_error(message=str(e), title="Error fetching products data")
         return
 
+
+@frappe.whitelist()
+def get_default_warehouse_for_user():
+    """
+    Returns the default warehouse assigned to the logged-in user via User Permission.
+    If none found, returns None.
+    """
+    try:
+        user = frappe.session.user  # get the logged-in user
+        if user == "Guest":
+            return None
+
+        warehouse_permission = frappe.get_all(
+            "User Permission",
+            filters={
+                "user": user,
+                "allow": "Warehouse",
+                "is_default": 1
+            },
+            fields=["for_value"],
+            limit=1
+        )
+
+        if warehouse_permission:
+            return warehouse_permission[0]["for_value"]
+
+    except Exception as e:
+        frappe.log_error(e, "get_default_warehouse_for_user")
+
+    return None
 
 @frappe.whitelist()
 def get_sales_invoice(user=None):
