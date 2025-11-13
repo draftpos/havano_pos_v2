@@ -32,7 +32,7 @@ app_include_js = [
 # include js in doctype views
 doctype_js = {
     "Landed Cost Voucher" : "custom_scripts/landed_cost_voucher.js",
-    "Salary Slip": "custom_scripts/salary_slip.js",
+    # "Salary Slip": "custom_scripts/salary_slip.js",
     "Income Tax Slab": "custom_scripts/income_tax_slab.js",
     "Additional Salary": "custom_scripts/additional_salary.js",
     "Employee": "custom_scripts/employee.js",
@@ -149,10 +149,7 @@ doc_events = {
     },
     # "Payment Entry": {
     #     "after_insert": "havano_pos_integration.api.submit_payment_entry"
-    # },
-    "Salary Slip": {
-        "validate": "havano_pos_integration.custom_scripts.salary_slip.validate"
-    },
+    # }, 
     "Income Tax Slab": {
         "before_validate": "havano_pos_integration.custom_scripts.income_tax_slab.before_validate",
         "validate": "havano_pos_integration.custom_scripts.income_tax_slab.validate"
