@@ -65,37 +65,50 @@ def get_inventory():
         create_response("417", {"error": str(e)})
         frappe.log_error(message=str(e), title="Error fetching inventory data")
         return
-
 @frappe.whitelist()
 def get_warehouses():
     try:
-        # Fetch inventory and warehouse details
-        inventory = frappe.get_all("Bin", fields=["item_code", "valuation_rate", "warehouse", "actual_qty", "ordered_qty", "stock_value"])
-        warehouses = frappe.get_all("Warehouse", fields=["name", "company", "account", "warehouse_type"])
-        
+        # Get logged-in user
+        user = frappe.session.user
+
+        # Fetch only warehouses created by the logged-in user
+        warehouses = frappe.get_all(
+            "Warehouse",
+            filters={"owner": user},
+            fields=["name", "company", "account", "warehouse_type"]
+        )
+
+        # Fetch inventory data for those warehouses
+        inventory = frappe.get_all(
+            "Bin",
+            filters={"warehouse": ["in", [w["name"] for w in warehouses]]},
+            fields=["item_code", "valuation_rate", "warehouse", "actual_qty", "ordered_qty", "stock_value"]
+        )
+
         # Calculate total quantity and value for each warehouse
         warehouse_inventory = {}
         for item in inventory:
             warehouse = item["warehouse"]
             if warehouse not in warehouse_inventory:
-                warehouse_inventory[warehouse] = {
-                    "total_quantity": 0,
-                    "total_value": 0
-                }
+                warehouse_inventory[warehouse] = {"total_quantity": 0, "total_value": 0}
             warehouse_inventory[warehouse]["total_quantity"] += item["actual_qty"]
             warehouse_inventory[warehouse]["total_value"] += item["stock_value"]
 
-        # Add total quantity and value to warehouse details
+        # Add total quantity and value to each warehouse
         for warehouse in warehouses:
             name = warehouse["name"]
             warehouse["total_quantity"] = warehouse_inventory.get(name, {}).get("total_quantity", 0)
             warehouse["total_value"] = warehouse_inventory.get(name, {}).get("total_value", 0)
+
+        # Return formatted response
         create_response("200", warehouses)
         return
+
     except Exception as e:
         create_response("417", {"error": str(e)})
         frappe.log_error(message=str(e), title="Error fetching warehouse data")
         return
+
 
 @frappe.whitelist()
 def get_cost_center():
@@ -152,94 +165,53 @@ def get_pos_profile():
         response.append(profile_data)
 
     return response
-
-
 @frappe.whitelist()
 def get_products():
     try:
-        # Get form data
-        data = frappe.local.form_dict
-        
-        # Get pagination parameters
-        page = int(data.get("page", 1))
-        limit = int(data.get("limit", 1000))
-        
-        # Validate pagination parameters
-        if page < 1:
-            page = 1
-        # if limit < 1 or limit > 100:  # Max limit of 100 to prevent performance issues
-        #     limit = 20
-            
-        # Calculate start for pagination
-        start = (page - 1) * limit
-        
-        # Get item_group from request body, if provided (can be single string or list)
-        item_group = data.get("item_group")
-        
-        # Get user's allowed item groups from permissions
-        user_item_groups = frappe.get_all(
+        # Get current user's company from User Permission
+        user_company = frappe.db.get_value(
             "User Permission",
-            filters={"user": frappe.session.user, "allow": "Item Group"},
-            fields=["for_value"]
-        )
-        user_item_group_list = [ig["for_value"] for ig in user_item_groups]
-        
-        # Build filters based on whether item_group is provided
-        filters = {}
-        
-        filters['disabled'] = 0
-        
-        # Handle item_group filtering (supports both single string and list)
-        if item_group:
-            # Convert single item_group to list for consistent handling
-            if isinstance(item_group, str):
-                requested_groups = [item_group]
-            elif isinstance(item_group, list):
-                requested_groups = item_group
-            else:
-                requested_groups = []
-            
-            # Filter requested groups to only include those user has permission for
-            if user_item_group_list:
-                # User has specific permissions, filter requested groups
-                allowed_groups = [group for group in requested_groups if group in user_item_group_list]
-                if allowed_groups:
-                    if len(allowed_groups) == 1:
-                        filters['item_group'] = allowed_groups[0]
-                    else:
-                        filters['item_group'] = ["in", allowed_groups]
-                else:
-                    # No requested groups are allowed, use user's allowed groups
-                    filters['item_group'] = ["in", user_item_group_list]
-            else:
-                # User has no specific permissions, use all requested groups
-                if len(requested_groups) == 1:
-                    filters['item_group'] = requested_groups[0]
-                else:
-                    filters['item_group'] = ["in", requested_groups]
-        else:
-            # No specific item_group requested, use user's allowed groups
-            if user_item_group_list:
-                filters['item_group'] = ["in", user_item_group_list]
-        # if user_cost_center:
-        #     filters['cost_center'] = ["=", user_cost_center]
-        
-        # Get total count for pagination metadata
-        total_count = frappe.db.count("Item", filters=filters)
-        
-        # Fetch paginated product details
-        product_details = frappe.get_all("Item", 
-            filters=filters,
-            fields=["name","item_name", "item_code", "item_group", "is_stock_item"],
-            start=start,
-            limit=limit,
-            order_by="item_code"
+            {"user": frappe.session.user, "allow": "Company"},
+            "for_value"
         )
         
+        # Find all users assigned to the same company
+        users_with_same_company = []
+        if user_company:
+            same_company_users = frappe.get_all(
+                "User Permission",
+                filters={"allow": "Company", "for_value": user_company},
+                fields=["user"]
+            )
+            users_with_same_company = [u["user"] for u in same_company_users]
+
+        # Always include logged-in user
+        if frappe.session.user not in users_with_same_company:
+            users_with_same_company.append(frappe.session.user)
+        
+        # Fetch items for each user and append
+        all_items = []
+        for owner in users_with_same_company:
+            items = frappe.get_all(
+                "Item",
+                filters={"disabled": 0, "owner": owner},
+                fields=["name", "item_name", "simple_code", "item_code", "item_group", "is_stock_item"]
+            )
+            all_items.extend(items)
+        
+        # Remove duplicates by item_code
+        seen = set()
+        product_details = []
+        for item in all_items:
+            if item["item_code"] not in seen:
+                seen.add(item["item_code"])
+                product_details.append(item)
+        
+        # Fetch warehouses and prices
         products_data = frappe.get_all("Bin", fields=["item_code", "warehouse", "actual_qty"])
-        price_lists = frappe.get_all("Item Price", fields=["price_list", "price_list_rate", "item_code","selling","buying"])
+        price_lists = frappe.get_all("Item Price", fields=["price_list", "price_list_rate", "item_code", "selling", "buying"])
         
-        # Initialize products dictionary with all items
+        # Initialize products dictionary
         products = {detail['item_code']: {"warehouses": [], "prices": [], "taxes": []} for detail in product_details}
         
         # Add warehouse data
@@ -250,11 +222,12 @@ def get_products():
                     "warehouse": product["warehouse"],
                     "qtyOnHand": product["actual_qty"]
                 })
-
+        
+        # Add default warehouse if none exists
         for item_code, pdata in products.items():
             if not pdata["warehouses"]:
                 pdata["warehouses"].append({
-                    "warehouse": None,
+                    "warehouse": get_default_warehouse_for_user(),
                     "qtyOnHand": 0
                 })
         
@@ -268,14 +241,11 @@ def get_products():
                     "type": "selling" if price["selling"] else "buying"
                 })
         
-        # Fetch taxes for each item individually
+        # Fetch taxes for each item
         for detail in product_details:
             item_code = detail["item_code"]
             try:
-                # Get the full Item document to access child table
                 item_doc = frappe.get_doc("Item", item_code)
-                
-                # Access the taxes child table
                 if hasattr(item_doc, 'taxes') and item_doc.taxes:
                     for tax_row in item_doc.taxes:
                         tax_info = {
@@ -287,16 +257,17 @@ def get_products():
                         }
                         products[item_code]["taxes"].append(tax_info)
             except Exception as tax_error:
-                # If there's an error fetching taxes for this item, continue with empty taxes
-                frappe.log_error(message=f"Error fetching taxes for item {item_code}: {str(tax_error)}", 
-                               title="Item Tax Fetch Error")
+                frappe.log_error(
+                    message=f"Error fetching taxes for item {item_code}: {str(tax_error)}", 
+                    title="Item Tax Fetch Error"
+                )
                 continue
         
-        # Compile final products list
+        # Compile final product list
         final_products = []
         for detail in product_details:
             item_code = detail["item_code"]
-            final_product = {
+            final_products.append({
                 "itemcode": item_code,
                 "itemname": detail["item_name"],
                 "groupname": detail["item_group"],
@@ -304,31 +275,11 @@ def get_products():
                 "warehouses": products[item_code]["warehouses"],
                 "default warehouse": get_default_warehouse_for_user(),
                 "prices": products[item_code]["prices"],
-                "taxes": products[item_code]["taxes"]
-            }
-            final_products.append(final_product)
+                "taxes": products[item_code]["taxes"],
+                "simple_code": detail["simple_code"]
+            })
         
-        # Calculate pagination metadata
-        total_pages = (total_count + limit - 1) // limit  # Ceiling division
-        has_next_page = page < total_pages
-        has_prev_page = page > 1
-        
-        # Create pagination response
-        pagination_response = {
-            "products": final_products,
-            "pagination": {
-                "current_page": page,
-                "limit": limit,
-                "total_count": total_count,
-                "total_pages": total_pages,
-                "has_next_page": has_next_page,
-                "has_prev_page": has_prev_page,
-                "next_page": page + 1 if has_next_page else None,
-                "prev_page": page - 1 if has_prev_page else None
-            }
-        }
-        
-        create_response("200", pagination_response)
+        create_response("200", {"products": final_products})
         return
         
     except Exception as e:
